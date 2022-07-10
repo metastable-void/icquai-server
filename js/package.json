@@ -1,0 +1,15 @@
+{
+  "name": "icquai-js-playground",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.mjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "@noble/ed25519": "^1.6.1",
+    "es-first-aid": "^1.6.2"
+  }
+}
