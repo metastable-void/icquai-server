@@ -83,12 +83,12 @@
         }
       });
 
-      globalThis.sendMessage = async (recipient, data) => {
+      globalThis.sendMessage = async (recipient, payload) => {
         const {publicKey, privateKey} = globalThis.keys;
         const message = {
           type: 'forward',
           recipient,
-          payload: data,
+          payload,
         };
         const json = JSON.stringify(message);
         const data = firstAid.encodeString(json);
