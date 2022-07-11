@@ -15,27 +15,30 @@
 
       globalThis.ws = new WebSocket(`wss://${location.host}/ws`);
 
-      (async () => {
+      ws.addEventListener('open', (ev) => {
         //
-        const privateKey = ed.utils.randomPrivateKey();
-        const publicKey = await ed.getPublicKey(privateKey);
-        const message = {
-          type: "register",
-        };
-        const json = JSON.stringify(message);
-        const data = firstAid.encodeString(json);
-        const signature = await ed.sign(data, privateKey);
-        const signedMessage = {
-          type: 'signed_envelope',
-          algo: 'sign-ed25519',
-          data: firstAid.encodeBase64(data),
-          public_key: firstAid.encodeBase64(publicKey),
-          signature: firstAid.encodeBase64(signature),
-        };
-        const registerMsg = JSON.stringify(signedMessage);
-        console.log(registerMsg);
-        ws.send(registerMsg);
-      })();
+        (async () => {
+          //
+          const privateKey = ed.utils.randomPrivateKey();
+          const publicKey = await ed.getPublicKey(privateKey);
+          const message = {
+            type: "register",
+          };
+          const json = JSON.stringify(message);
+          const data = firstAid.encodeString(json);
+          const signature = await ed.sign(data, privateKey);
+          const signedMessage = {
+            type: 'signed_envelope',
+            algo: 'sign-ed25519',
+            data: firstAid.encodeBase64(data),
+            public_key: firstAid.encodeBase64(publicKey),
+            signature: firstAid.encodeBase64(signature),
+          };
+          const registerMsg = JSON.stringify(signedMessage);
+          console.log(registerMsg);
+          ws.send(registerMsg);
+        })();
+      })
     </script>
   </body>
 </html>
