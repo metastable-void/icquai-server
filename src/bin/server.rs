@@ -52,11 +52,14 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
             let mut map = pubkey_map.lock().unwrap();
             let _ = maybe_pubkey.lock().unwrap().insert(signer.to_owned());
             map.insert(signer.to_owned(), tx.clone());
+            info!("Registered: {}", signer);
           }
           IcquaiMessage::Forward { recipient } => {
             let peers = pubkey_map.lock().unwrap();
             let recipients =
               peers.iter().filter(|(peer_pubkey, _)| peer_pubkey.as_str() == recipient.as_str()).map(|(_, ws_sink)| ws_sink);
+            
+            info!("Forwarding message to: {}", recipient);
             
             let mut sent_count = 0;
             for recp in recipients {
