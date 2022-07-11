@@ -43,6 +43,7 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
     future::ready(msg.is_text())
   }).try_for_each(|msg| {
     let text = msg.clone().into_text().unwrap();
+    info!("Message: {}", text);
     let message = IcquaiMessage::from_json(&text);
     match &message {
       IcquaiMessage::Signed { signer, message } => {
@@ -101,6 +102,8 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
 
 #[tokio::main]
 async fn main() -> Result<(), IoError> {
+  env_logger::init();
+
   let addr = env::args().nth(1).unwrap_or_else(|| "127.0.0.1:8080".to_string());
 
   let pubkey_map = PubKeyMap::new(Mutex::new(HashMap::new()));
