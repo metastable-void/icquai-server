@@ -2,7 +2,7 @@
 // vim: set ts=2 sw=2 et ai :
 
 use std::{
-  collections::HashMap,
+  collections::{HashMap},
   env,
   io::Error as IoError,
   net::SocketAddr,
@@ -15,7 +15,7 @@ use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 use tokio::net::{TcpListener, TcpStream};
 use tungstenite::protocol::Message;
 
-use log::{info, warn};
+use log::{debug, info, warn};
 
 use icquai_server::IcquaiMessage;
 
@@ -24,7 +24,7 @@ use serde_json::json;
 type Tx = UnboundedSender<Message>;
 
 // TODO: change to Arc<Mutex<HashMap<String, HashSet<Tx>>>> to support multiple windows for one client
-type PubKeyMap = Arc<Mutex<HashMap<String, Tx>>>;
+type PubKeyMap = Arc<Mutex<HashMap<String, HashMap<SocketAddr, Tx>>>>;
 
 async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: SocketAddr) {
   //info!("Incoming TCP connection from: {}", addr);
@@ -45,7 +45,7 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
     future::ready(msg.is_text())
   }).try_for_each(|msg| {
     let text = msg.clone().into_text().unwrap();
-    info!("Message: {}", text);
+    debug!("Message: {}", text);
     let message = IcquaiMessage::from_json(&text);
     match &message {
       IcquaiMessage::Signed { signer, message } => {
@@ -54,17 +54,24 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
           IcquaiMessage::Register => {
             let mut map = pubkey_map.lock().unwrap();
             let _ = maybe_pubkey.lock().unwrap().insert(signer.to_owned());
-            map.insert(signer.to_owned(), tx.clone());
-            info!("Registered: {}", signer);
+            if let None = map.get(signer) {
+              map.insert(signer.to_owned(), HashMap::new());
+            }
+            let set = map.get_mut(signer).unwrap();
+            info!("Registered: {} at address {}", signer, &addr);
+            set.insert(addr, tx.clone());
           }
           IcquaiMessage::Forward { recipient } => {
             let peers = pubkey_map.lock().unwrap();
             
             let recipient_sink = peers.get(recipient);
-            if let Some(sink) = recipient_sink {
-              info!("Forwarding message to: {}", recipient);
-              sink.unbounded_send(msg.clone()).unwrap();
+            if let Some(sinks) = recipient_sink {
+              for (recipient_addr, sink) in sinks.iter() {
+                info!("Forwarding message to: {} (addr: {})", recipient, recipient_addr);
+                sink.unbounded_send(msg.clone()).unwrap();
+              }
             } else {
+              info!("Message from {} to {} bounced", signer, recipient);
               let bounced = json!({
                 "type": "bounce",
                 "recipient": recipient.to_owned(),
@@ -92,14 +99,16 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
   future::select(broadcast_incoming, receive_from_others).await;
 
   info!("{} disconnected", &addr);
-  let pubkey = maybe_pubkey.lock().unwrap().to_owned();
-  match pubkey {
-    Some(str) => {
-      info!("Removed registration: {}", str);
-      pubkey_map.lock().unwrap().remove(&str);
+  if let Some(pubkey) = maybe_pubkey.lock().unwrap().to_owned() {
+    let mut map = pubkey_map.lock().unwrap();
+    if let Some(sock_map) = map.get_mut(&pubkey) {
+      sock_map.remove(&addr);
+      if sock_map.is_empty() {
+        map.remove(&pubkey);
+      }
     }
-    None => ()
-  }
+    info!("Removed registration: {} at addr {}", pubkey, &addr);
+  };
 }
 
 #[tokio::main]
