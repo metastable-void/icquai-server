@@ -94,6 +94,7 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
   let pubkey = maybe_pubkey.lock().unwrap().to_owned();
   match pubkey {
     Some(str) => {
+      info!("Removed registration: {}", str);
       pubkey_map.lock().unwrap().remove(&str);
     }
     None => ()

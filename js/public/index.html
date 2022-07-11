@@ -37,8 +37,72 @@
           const registerMsg = JSON.stringify(signedMessage);
           console.log(registerMsg);
           ws.send(registerMsg);
+          console.log('Registered to server');
+          globalThis.keys = {
+            privateKey,
+            publicKey,
+          };
         })();
-      })
+      });
+
+      ws.addEventListener('message', (ev) => {
+        if ('string' != typeof ev.data) {
+          console.warn('Non-string message received, ignoring');
+          return;
+        }
+        const json = JSON.parse(ev.data);
+        switch (json.type) {
+          case 'bounce': {
+            console.warn('Message sent to %s bounced!', json.recipient);
+            break;
+          }
+          case 'signed_envelope': {
+            if (json.algo != 'sign-ed25519') {
+              console.error('Unsupported algorithm: %s', json.algo);
+              break;
+            }
+            try {
+              const data = firstAid.decodeBase64(json.data);
+              const signature = firstAid.decodeBase64(json.signature);
+              const publicKey = firstAid.decodeBase64(json.public_key);
+              if (!ed.verify(signature, data, publicKey)) {
+                console.warn('Failed to verify message');
+                break;
+              }
+              const str = firstAid.decodeString(data);
+              const innerData = JSON.parse(str);
+              console.log('Message received from %s:', json.public_key, innerData);
+            } catch (e) {
+              console.error(e);
+            }
+            break;
+          }
+          default: {
+            console.warn('Unknown message received');
+          }
+        }
+      });
+
+      globalThis.sendMessage = async (recipient, data) => {
+        const {publicKey, privateKey} = globalThis.keys;
+        const message = {
+          type: 'forward',
+          recipient,
+          payload: data,
+        };
+        const json = JSON.stringify(message);
+        const data = firstAid.encodeString(json);
+        const signature = await ed.sign(data, privateKey);
+        const signedMessage = {
+          type: 'signed_envelope',
+          algo: 'sign-ed25519',
+          data: firstAid.encodeBase64(data),
+          public_key: firstAid.encodeBase64(publicKey),
+          signature: firstAid.encodeBase64(signature),
+        };
+        const signedJson = JSON.stringify(signedMessage);
+        ws.send(signedJson);
+      };
     </script>
   </body>
 </html>
