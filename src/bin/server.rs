@@ -15,13 +15,15 @@ use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 use tokio::net::{TcpListener, TcpStream};
 use tungstenite::protocol::Message;
 
-use log::info;
+use log::{info, warn};
 
 use icquai_server::IcquaiMessage;
 
 use serde_json::json;
 
 type Tx = UnboundedSender<Message>;
+
+// TODO: change to Arc<Mutex<HashMap<String, HashSet<Tx>>>> to support multiple windows for one client
 type PubKeyMap = Arc<Mutex<HashMap<String, Tx>>>;
 
 async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: SocketAddr) {
@@ -57,18 +59,12 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
           }
           IcquaiMessage::Forward { recipient } => {
             let peers = pubkey_map.lock().unwrap();
-            let recipients =
-              peers.iter().filter(|(peer_pubkey, _)| peer_pubkey.as_str() == recipient.as_str()).map(|(_, ws_sink)| ws_sink);
             
-            info!("Forwarding message to: {}", recipient);
-            
-            let mut sent_count = 0;
-            for recp in recipients {
-              sent_count += 1;
-              recp.unbounded_send(msg.clone()).unwrap();
-            }
-
-            if sent_count < 1 {
+            let recipient_sink = peers.get(recipient);
+            if let Some(sink) = recipient_sink {
+              info!("Forwarding message to: {}", recipient);
+              sink.unbounded_send(msg.clone()).unwrap();
+            } else {
               let bounced = json!({
                 "type": "bounce",
                 "recipient": recipient.to_owned(),
@@ -76,10 +72,15 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
               tx.unbounded_send(Message::Text(bounced.to_string())).unwrap();
             }
           }
-          _ => ()
+          _ => {
+            warn!("Unknown message received");
+          }
         }
       }
-      _ => () // ignore unsigned data
+      _ => {
+        // ignore unsigned data
+        warn!("Ignoring unsigned data");
+      }
     }
 
     future::ok(())
