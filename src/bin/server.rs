@@ -23,7 +23,6 @@ use serde_json::json;
 
 type Tx = UnboundedSender<Message>;
 
-// TODO: change to Arc<Mutex<HashMap<String, HashSet<Tx>>>> to support multiple windows for one client
 type PubKeyMap = Arc<Mutex<HashMap<String, HashMap<SocketAddr, Tx>>>>;
 
 async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: SocketAddr) {
