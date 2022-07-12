@@ -64,18 +64,27 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
             let peers = pubkey_map.lock().unwrap();
             
             let recipient_sink = peers.get(recipient);
+            let mut sent_count: i32 = 0;
             if let Some(sinks) = recipient_sink {
               for (recipient_addr, sink) in sinks.iter() {
                 info!("Forwarding message to: {} (addr: {})", recipient, recipient_addr);
-                sink.unbounded_send(msg.clone()).unwrap();
+                if let Err(err) = sink.unbounded_send(msg.clone()) {
+                  warn!("Failed to forward a message: {}", err);
+                } else {
+                  sent_count += 1;
+                }
               }
-            } else {
+            }
+
+            if sent_count < 1 {
               info!("Message from {} to {} bounced", signer, recipient);
               let bounced = json!({
                 "type": "bounce",
                 "recipient": recipient.to_owned(),
               });
-              tx.unbounded_send(Message::Text(bounced.to_string())).unwrap();
+              if let Err(err) = tx.unbounded_send(Message::Text(bounced.to_string())) {
+                warn!("Failed to send a bounce message: {}", err);
+              }
             }
           }
           _ => {
