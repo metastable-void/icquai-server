@@ -104,7 +104,13 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
   let receive_from_others = rx.map(Ok).forward(outgoing);
 
   pin_mut!(broadcast_incoming, receive_from_others);
-  future::select(broadcast_incoming, receive_from_others).await;
+  let (result1, result2) = future::join(broadcast_incoming, receive_from_others).await;
+  if let Err(err1) = result1 {
+    info!("Reading errored: {:?}", err1);
+  }
+  if let Err(err2) = result2 {
+    info!("Writing errored: {:?}", err2);
+  }
 
   info!("{} disconnected", &addr);
   if let Some(pubkey) = maybe_pubkey.lock().unwrap().to_owned() {
