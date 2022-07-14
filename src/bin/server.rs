@@ -93,7 +93,7 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
         }
       }
       IcquaiMessage::KeepAlive => {
-        info!("Received KeepAlive from {}", &addr);
+        debug!("Received KeepAlive from {}", &addr);
       }
       _ => {
         // ignore unsigned data
@@ -121,6 +121,7 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
     if let Some(sock_map) = map.get_mut(&pubkey) {
       sock_map.remove(&addr);
       if sock_map.is_empty() {
+        debug!("Last registration from this pubkey removed: {}", pubkey);
         map.remove(&pubkey);
       }
     }
