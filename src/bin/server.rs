@@ -56,9 +56,13 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
             if let None = map.get(signer) {
               map.insert(signer.to_owned(), HashMap::new());
             }
-            let set = map.get_mut(signer).unwrap();
-            info!("Registered: {} at address {}", signer, &addr);
-            set.insert(addr, tx.clone());
+            let this_user_count;
+            {
+              let set = map.get_mut(signer).unwrap();
+              set.insert(addr, tx.clone());
+              this_user_count = set.len();
+            }
+            info!("Registered: {} at address {}, now {} registration(s), this user has {} connections", signer, &addr, map.len(), this_user_count);
             let registered = json!({
               "type": "registered",
               "public_key": signer.to_owned(),
@@ -119,7 +123,7 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
     info!("Reading errored: {:?}", err1);
   }
   if let Err(err2) = result2 {
-    info!("Writing errored: {:?}", err2);
+    debug!("Writing errored: {:?}", err2);
   }
 
   info!("{} disconnected", &addr);
@@ -132,7 +136,7 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
         map.remove(&pubkey);
       }
     }
-    info!("Removed registration: {} at addr {}", pubkey, &addr);
+    info!("Removed registration: {} at addr {}, {} registration(s) remaining", pubkey, &addr, map.len());
   };
 }
 
