@@ -92,6 +92,9 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
           }
         }
       }
+      IcquaiMessage::KeepAlive => {
+        info!("Received KeepAlive from {}", &addr);
+      }
       _ => {
         // ignore unsigned data
         warn!("Ignoring unsigned data");

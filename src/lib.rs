@@ -12,6 +12,7 @@ pub type PublicKeyBase64 = String;
 pub enum IcquaiMessage {
   Unknown,
   Register,
+  KeepAlive,
   Forward {
     recipient: PublicKeyBase64,
   },
@@ -49,6 +50,9 @@ impl IcquaiMessage {
       match message_type.as_str() {
         "register" => {
           return IcquaiMessage::Register
+        }
+        "keep_alive" => {
+          return IcquaiMessage::KeepAlive
         }
         "forward" => {
           let recipient: String;
