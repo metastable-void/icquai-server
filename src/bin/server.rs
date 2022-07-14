@@ -64,7 +64,7 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
               "public_key": signer.to_owned(),
             });
             if let Err(err) = tx.unbounded_send(Message::Text(registered.to_string())) {
-              warn!("Failed to send a registered message: {?:}", err);
+              warn!("Failed to send a registered message: {:?}", err);
             }
           }
           IcquaiMessage::Forward { recipient } => {
@@ -76,7 +76,7 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
               for (recipient_addr, sink) in sinks.iter() {
                 info!("Forwarding message to: {} (addr: {})", recipient, recipient_addr);
                 if let Err(err) = sink.unbounded_send(msg.clone()) {
-                  warn!("Failed to forward a message: {?:}", err);
+                  warn!("Failed to forward a message: {:?}", err);
                 } else {
                   sent_count += 1;
                 }
@@ -90,7 +90,7 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
                 "recipient": recipient.to_owned(),
               });
               if let Err(err) = tx.unbounded_send(Message::Text(bounced.to_string())) {
-                warn!("Failed to send a bounce message: {?:}", err);
+                warn!("Failed to send a bounce message: {:?}", err);
               }
             }
           }
