@@ -9,6 +9,8 @@ use std::{
   sync::{Arc, Mutex},
 };
 
+use rand::{thread_rng, Rng};
+
 use futures_channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 
@@ -40,6 +42,16 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
 
   let maybe_pubkey: Mutex<Option<String>> = Mutex::new(None);
 
+  let nonce_data: [u8; 32] = thread_rng().gen();
+  let nonce_base64 = base64::encode(&nonce_data);
+  let hello = json!({
+    "type": "server_hello",
+    "nonce": nonce_base64,
+  });
+  if let Err(err) = tx.unbounded_send(Message::Text(hello.to_string())) {
+    warn!("Failed to send a hello message: {:?}", err);
+  }
+
   let broadcast_incoming = incoming.try_filter(|msg| {
     future::ready(msg.is_text())
   }).try_for_each(|msg| {
@@ -50,7 +62,11 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
       IcquaiMessage::Signed { signer, message } => {
         // signed message
         match message.as_ref() {
-          IcquaiMessage::Register => {
+          IcquaiMessage::Register {nonce} => {
+            if nonce.to_owned() != nonce_base64 {
+              warn!("Nonce does not match");
+              return future::ok(());
+            }
             let mut map = pubkey_map.lock().unwrap();
             let _ = maybe_pubkey.lock().unwrap().insert(signer.to_owned());
             if let None = map.get(signer) {

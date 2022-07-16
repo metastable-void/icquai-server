@@ -295,6 +295,7 @@ dependencies = [
  "futures-channel",
  "futures-util",
  "log",
+ "rand 0.8.5",
  "serde_json",
  "tokio",
  "tokio-tungstenite",
