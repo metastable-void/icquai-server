@@ -86,7 +86,7 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
               set.insert(addr, tx.clone());
               this_user_count = set.len();
             }
-            info!("Registered: {} at address {}, now {} registration(s), this user has {} connections", signer, &addr, map.len(), this_user_count);
+            info!("Registered: {} at address {}, now {} registration(s), this user has {} connection(s)", signer, &addr, map.len(), this_user_count);
             let registered = json!({
               "type": "registered",
               "public_key": signer.to_owned(),
