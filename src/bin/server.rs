@@ -1,5 +1,5 @@
 // -*- indent-tabs-mode: nil; tab-width: 2; -*-
-// vim: set ts=2 sw=2 et ai :
+// vim: set ts=&2 sw=2 et ai :
 
 use std::{
   collections::{HashMap},
@@ -17,7 +17,7 @@ use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 use tokio::net::{TcpListener, TcpStream};
 use tungstenite::protocol::Message;
 
-use log::{debug, info, warn};
+use log::{debug, info, warn, error};
 
 use icquai_server::IcquaiMessage;
 
@@ -30,9 +30,17 @@ type PubKeyMap = Arc<Mutex<HashMap<String, HashMap<SocketAddr, Tx>>>>;
 async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: SocketAddr) {
   //info!("Incoming TCP connection from: {}", addr);
 
-  let ws_stream = tokio_tungstenite::accept_async(raw_stream)
-    .await
-    .expect("Error during the websocket handshake occurred");
+  let ws_stream;
+  match tokio_tungstenite::accept_async(raw_stream).await {
+    Err(err) => {
+      error!("Error during the websocket handshake occurred: {:?}", err);
+      return;
+    }
+    Ok(stream) => {
+      ws_stream = stream;
+    }
+  }
+
   info!("WebSocket connection established: {}", addr);
 
   // Insert the write part of this peer to the peer map.
