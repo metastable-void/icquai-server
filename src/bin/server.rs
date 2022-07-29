@@ -1,6 +1,8 @@
 // -*- indent-tabs-mode: nil; tab-width: 2; -*-
 // vim: set ts=&2 sw=2 et ai :
 
+extern crate serde_json;
+
 use std::{
   collections::{HashMap},
   env,
@@ -66,6 +68,14 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
     let text = msg.clone().into_text().unwrap();
     debug!("Message: {}", text);
     let message = IcquaiMessage::from_json(&text);
+    let message_json;
+    if let Ok(json) = serde_json::from_str(&text) {
+      message_json = json;
+    } else {
+      message_json = json!({
+        "type": "unknown",
+      });
+    }
     match &message {
       IcquaiMessage::Signed { signer, message } => {
         // signed message
@@ -116,6 +126,7 @@ async fn handle_connection(pubkey_map: PubKeyMap, raw_stream: TcpStream, addr: S
               let bounced = json!({
                 "type": "bounce",
                 "recipient": recipient.to_owned(),
+                "message": &message_json,
               });
               if let Err(err) = tx.unbounded_send(Message::Text(bounced.to_string())) {
                 warn!("Failed to send a bounce message: {:?}", err);
